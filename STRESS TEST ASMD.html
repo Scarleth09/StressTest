@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Stress Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f0f0f0;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+        }
+        .container {
+            background-color: #fff;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+            text-align: center;
+            max-width: 800px;
+            width: 100%;
+            margin: 20px;
+        }
+        .button {
+            background-color: #8a2be2;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            margin-top: 20px;
+        }
+        .button:hover {
+            background-color: #7b23d1;
+        }
+        .question {
+            margin: 20px 0;
+            text-align: left;
+        }
+        .question p {
+            margin: 0 0 10px 0;
+        }
+        label {
+            display: block;
+            margin: 5px 0;
+        }
+    </style>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs"></script>
+</head>
+<body>
+    <div class="container" id="welcome-screen">
+        <h1>Stress Test</h1>
+        <p>El estrés es una respuesta natural del cuerpo ante situaciones percibidas como amenazantes o desafiantes. Puede tener efectos tanto positivos como negativos en la salud y el bienestar de las personas. De acuerdo con datos de la Bolsa de trabajo en México OCC Mundial, en 2019 el estrés crónico en los centros laborales afectó a más de 40 por ciento de sus integrantes; en 2021 se incrementó a 63 por ciento. La ciencia ha desarrollado varias estrategias y herramientas para prevenir y manejar el estrés, incluyendo: Terapias Psicológicas, Ejercicio Físico, Sueño de calidad. Intervenciones basadas en estudios y exámenes realizados por paciente. Estas intervenciones han demostrado ser efectivas para reducir y prevenir el estrés en diversas poblaciones. La tecnología ha contribuido significativamente por medio de: Aplicaciones de Bienestar, Chatbots Terapéuticos, Monitores virtuales y Plataformas de Medicina virtuales.</p>
+        <h2>¿Qué se busca con Stress Test?</h2>
+        <p>Con Stress Test, buscamos no solo concientizar sobre la importancia de gestionar el estrés, sino también brindar recomendaciones útiles y accesibles para mejorar tu bienestar emocional.
+            Stress Test está dirigido para los estudiantes universitarios, la edad solicitada para realizar el test es a partir de los 17 años en adelante.
+        </p>
+        <h2>Instrucciones: </h2>
+        <p>No te tomará mucho tiempo y es gratuito.
+            Tardarás menos de tres minutos en responder este cuestionario. Por favor, lee cada pregunta con atención y selecciona la respuesta que más se ajuste a tu caso.
+            
+            No hay respuestas incorrectas, lo importante es que respondas con honestidad. Recuerda que tu resultado es confidencial y no será publicado ni compartido. Ten presente que este no es un cuestionario diagnóstico, es solo una herramienta que te ayudará a identificar si estás sintiéndote expuesto a mucho estrés.</p>
+        <button class="button" onclick="startTest()">Iniciar Test</button>
+    </div>
+
+    <div class="container" id="test-screen" style="display: none;">
+        <h1>Stress Test</h1>
+        <form id="stress-test-form">
+            <!-- Preguntas serán generadas aquí por JavaScript -->
+        </form>
+        <button class="button" type="button" onclick="submitTest()">Ver Resultados</button>
+    </div>
+
+    <div class="container" id="results-screen" style="display: none;">
+        <h1>Resultados</h1>
+        <p id="results"></p>
+        <p id="recommendations"></p>
+        <button class="button" type="button" onclick="goBack()">Regresar a la pantalla inicial</button>
+    </div>
+
+    <script>
+        const questions = [
+            "1. ¿Con qué frecuencia te has sentido afectado por un hecho o situación inesperada?",
+            "2. Tengo claros síntomas nerviosos como sudoración de manos, temblores y demás antes de un examen:",
+            "3. ¿Con qué frecuencia has sentido que tenías todo bajo control?",
+            "4. ¿Con qué frecuencia sientes que las dificultades se te acumulan tanto que no puedes superarlas?",
+            "5. Siento pánico antes y durante un examen:",
+            "6. Me pongo nervioso o me inquieto porque los resultados obtenidos en los exámenes no reflejan, en absoluto, mi trabajo anterior de preparación ni el esfuerzo desarrollado.",
+            "7. Me pongo nervioso o me inquieto por los conflictos en las relaciones con otras personas (profesores, compañeros)",
+            "8. Me pongo nervioso o me inquieto al hacer una exposición o al hablar en público durante un cierto tiempo",
+            "9. Me pongo nervioso o me inquieto las clases a las que asisto son poco prácticas",
+            "10. ¿Me enfado con mucha facilidad si no sé cómo hacer bien las cosas?",
+            "11. ¿Siento que los profesores no valoran tu esfuerzo como te lo mereces?",
+            "12. Me pongo nervioso o me inquieto por la ausencia de un buen ambiente en clase.",
+            "13. Me pongo nervioso o me inquieto porque no está en mi mano plantear los trabajos, tareas o actividades como me gustaría",
+            "14. ¿Suelo dejar tareas a medio hacer o aplazarlas habitualmente?",
+            "15. Me siento cansado o frustrado por el ritmo de trabajo o estudio que se nos exige."
+        ];
+
+        const options = [
+            { label: "Nunca", value: 0 },
+            { label: "Casi nunca", value: 1 },
+            { label: "De vez en cuando", value: 2 },
+            { label: "A menudo", value: 3 },
+            { label: "Muy a menudo", value: 4 }
+        ];
+
+        let model;
+
+        async function loadModel() {
+            model = tf.sequential();
+            model.add(tf.layers.dense({inputShape: [15], units: 8, activation: 'relu'}));
+            model.add(tf.layers.dense({units: 3, activation: 'softmax'}));
+            model.compile({optimizer: 'adam', loss: 'categoricalCrossentropy', metrics: ['accuracy']});
+
+            // Entrenamiento con datos ficticios
+            const xs = tf.tensor2d([
+                [0, 1, 2, 1, 0, 2, 1, 2, 0, 1, 2, 0, 1, 2, 1],
+                [1, 2, 0, 2, 1, 0, 2, 0, 1, 2, 0, 1, 2, 0, 2],
+                [2, 0, 1, 0, 2, 1, 0, 1, 2, 0, 1, 2, 0, 1, 0]
+            ]);
+            const ys = tf.tensor2d([
+                [1, 0, 0],
+                [0, 1, 0],
+                [0, 0, 1]
+            ]);
+            await model.fit(xs, ys, {epochs: 100});
+        }
+
+        async function startTest() {
+            await loadModel();
+            document.getElementById('welcome-screen').style.display = 'none';
+            document.getElementById('test-screen').style.display = 'block';
+            const form = document.getElementById('stress-test-form');
+            form.innerHTML = ''; // Limpiar el formulario antes de agregar preguntas
+            questions.forEach((question, index) => {
+                const questionDiv = document.createElement('div');
+                questionDiv.className = 'question';
+                questionDiv.innerHTML = `<p>${question}</p>`;
+                options.forEach((option, i) => {
+                    questionDiv.innerHTML += `
+                        <label>
+                            <input type="radio" name="q${index}" value="${option.value}" required>
+                            ${option.label}
+                        </label>
+                    `;
+                });
+                form.appendChild(questionDiv);
+            });
+        }
+
+        async function submitTest() {
+            const form = document.getElementById('stress-test-form');
+            const formData = new FormData(form);
+            let inputs = [];
+            for (let [key, value] of formData.entries()) {
+                inputs.push(parseInt(value));
+            }
+
+            const inputTensor = tf.tensor2d([inputs]);
+            const prediction = model.predict(inputTensor);
+            const result = await prediction.data();
+
+            showResults(result);
+        }
+
+        function showResults(result) {
+            document.getElementById('test-screen').style.display = 'none';
+            document.getElementById('results-screen').style.display = 'block';
+
+            let level = '';
+            let recommendations = '';
+            const index = result.indexOf(Math.max(...result));
+
+            if (index === 0) {
+                level = 'Bajo';
+                recommendations = 'Tu nivel de estrés es bajo. Sigue así y mantén un buen equilibrio entre estudio y descanso. Realizar actividades físicas todos los días es la mejor y más fácil manera de lidiar con el estrés. Al hacer ejercicio, su cerebro libera químicos que lo hacen sentir bien. También puede ayudarle con su energía reprimida o su frustración. Busque algo que disfrute, ya sea caminar, montar en bicicleta, jugar softball, nadar o bailar, y hágalo por al menos 30 minutos la mayoría de los días.';
+            } else if (index === 1) {
+                level = 'Moderado';
+                recommendations = 'Tu nivel de estrés es moderado. Considera técnicas de manejo del estrés como ejercicios de respiración y pausas activas. La práctica de técnicas de relajación es una gran manera de lidiar con el estrés del día a día. Las técnicas de relajación le ayudan a disminuir el ritmo cardíaco y reducir la presión sanguínea. Existen muchos tipos, desde respiraciones profundas y meditación hasta yoga y taichí. Tome una clase o intente aprender de libros, videos o recursos en línea. Intenta organizar tu tiempo de manera efectiva y busca apoyo cuando lo necesites.';
+            } else {
+                level = 'Alto';
+                recommendations = 'Tu nivel de estrés es alto. Es importante que busques apoyo, hables con un consejero y practiques actividades relajantes. Buscar ayuda no es una señal de debilidad, sino de fortaleza. Al reconocer que necesitas apoyo y tomar medidas para mejorar tu salud mental, estás cuidando de ti mismo de la mejor manera posible.';
+            }
+
+            document.getElementById('results').innerText = `Nivel de estrés: ${level}`;
+            document.getElementById('recommendations').innerText = recommendations;
+        }
+
+        function goBack() {
+            document.getElementById('results-screen').style.display = 'none';
+            document.getElementById('welcome-screen').style.display = 'block';
+        }
+    </script>
+</body>
+</html>
